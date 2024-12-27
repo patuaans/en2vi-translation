@@ -60,7 +60,7 @@ def evaluate_model(model, tokenizer, device, test_dataset, stage_name):
         dataloader = DataLoader(
             test_dataset, 
             collate_fn=data_collator, 
-            batch_size=10,
+            batch_size=10, # Change batch size based on GPU memory
             shuffle=True
         )
 
@@ -68,8 +68,8 @@ def evaluate_model(model, tokenizer, device, test_dataset, stage_name):
         with tqdm(total=len(dataloader), desc="Evaluating") as pbar:
             with torch.no_grad():
                 for batch in dataloader:
-                    inputs = {k: v.to("cuda") for k, v in batch.items() if k != "labels"}
-                    labels = batch["labels"].to("cuda")
+                    inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
+                    labels = batch["labels"].to(device)
 
                     outputs = model.generate(
                         **inputs,
@@ -147,4 +147,4 @@ if __name__ == "__main__":
 
     # Evaluate on MedEV test set
     print("\nEvaluating on MedEV test set:")
-    evaluate_model(model, tokenizer, device, medev_datasets["test"].select(range(100)), "MedEV")
+    evaluate_model(model, tokenizer, device, medev_datasets["test"], "MedEV")
