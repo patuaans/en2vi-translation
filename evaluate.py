@@ -1,17 +1,30 @@
 import os
 import json
 from datetime import datetime
+from tqdm.auto import tqdm
 import torch
+from torch.utils.data import DataLoader
 from transformers import (
     AutoTokenizer,
     AutoModelForSeq2SeqLM,
     DataCollatorForSeq2Seq,
-    BitsAndBytesConfig
 )
 from datasets import load_from_disk
 from peft import PeftModel
 from sacrebleu.metrics import BLEU, TER
 from nltk.translate.meteor_score import meteor_score
+
+def load_model(model_name):
+    """Load model"""
+    try:
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_name,
+            device_map="auto",
+        )
+        return model
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        raise
 
 def load_peft_model(model_name, adapter_path):
     """Load a PEFT model with proper configuration."""
@@ -21,26 +34,18 @@ def load_peft_model(model_name, adapter_path):
             device_map="auto",
             low_cpu_mem_usage=True
         )
-
-
-
-        # peft_model = PeftModel.from_pretrained(model, adapter_path)
-        # peft_model.merge_and_unload()
-        # return peft_model
-        return model
-    
-
+        peft_model = PeftModel.from_pretrained(model, adapter_path)
+        peft_model.merge_and_unload()
+        return peft_model
     except Exception as e:
         print(f"Error loading model: {e}")
         raise
 
-def evaluate_model(model_name, adapter_path, tokenizer, test_dataset, stage_name):
+def evaluate_model(model, tokenizer, device, test_dataset, stage_name):
     try:
         results_dir = "./evaluation_results"
         os.makedirs(results_dir, exist_ok=True)
 
-        # Load the fine-tuned model
-        model = load_peft_model(model_name, adapter_path)
         model.eval()
 
         # Initialize BLEU and TER metrics
@@ -52,42 +57,34 @@ def evaluate_model(model_name, adapter_path, tokenizer, test_dataset, stage_name
         decoded_labels = []
 
         data_collator = DataCollatorForSeq2Seq(tokenizer, model, pad_to_multiple_of=8, return_tensors="pt")
-        eval_dataloader = torch.utils.data.DataLoader(
+        dataloader = DataLoader(
             test_dataset, 
             collate_fn=data_collator, 
-            batch_size=8,
-            # shuffle=False
+            batch_size=10,
+            shuffle=True
         )
 
         print("Starting evaluation on the test split...")
-        for batch in eval_dataloader:
-            inputs = {k: v.to("cuda") for k, v in batch.items() if k != "labels"}
-            labels = batch["labels"].to("cuda")
-
+        with tqdm(total=len(dataloader), desc="Evaluating") as pbar:
             with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    decoder_start_token_id=tokenizer.lang_code_to_id["vi_VN"],
-                    num_return_sequences=1,
-                    num_beams=5,
-                    early_stopping=True
-                )
+                for batch in dataloader:
+                    inputs = {k: v.to("cuda") for k, v in batch.items() if k != "labels"}
+                    labels = batch["labels"].to("cuda")
 
-            preds = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-            labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+                    outputs = model.generate(
+                        **inputs,
+                        decoder_start_token_id=tokenizer.lang_code_to_id["vi_VN"],
+                        num_return_sequences=1,
+                        num_beams=5,
+                        early_stopping=True
+                    )
+                    pbar.update(1)
 
-            decoded_preds.extend(preds)
-            decoded_labels.extend(labels)
+                preds = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+                labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-            if len(decoded_preds) <= 5:
-                for i, (pred, label) in enumerate(zip(preds, labels)):
-                    print(f"\nExample {i + 1}:")
-                    print(f"Prediction: {pred}")
-                    print(f"Reference: {label}")
-
-            # Clean up
-            del inputs, labels, outputs, preds, batch
-            torch.cuda.empty_cache()
+        decoded_preds.extend(preds)
+        decoded_labels.extend(labels)
 
         # Calculate metrics
         bleu_score = bleu.corpus_score(decoded_preds, [decoded_labels]).score
@@ -136,12 +133,18 @@ if __name__ == "__main__":
     # Path to the tokenized dataset, result of MedEV
     medev_tokenized_path = "./tokenized_dataset/MedEV"
     medev_result_path = "./finetuned_model/MedEV"
+    medev_datasets = load_from_disk(medev_tokenized_path)
 
     # Load tokenizer
     model_name = "vinai/vinai-translate-en2vi-v2"
     tokenizer = AutoTokenizer.from_pretrained(model_name, src_lang="en_XX", tgt_lang="vi_VN")
 
+    # Load model
+    model = load_model(model_name)
+    # model = load_peft_model(model_name, medev_result_path)
+
+    device = torch.device('cuda')
+
     # Evaluate on MedEV test set
     print("\nEvaluating on MedEV test set:")
-    medev_datasets = load_from_disk(medev_tokenized_path)
-    evaluate_model(model_name, medev_result_path, tokenizer, medev_datasets["test"], "MedEV")
+    evaluate_model(model, tokenizer, device, medev_datasets["test"].select(range(100)), "MedEV")
