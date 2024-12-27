@@ -24,7 +24,7 @@ def load_and_prepare_dataset(data_path, is_csv=False):
         # Load MedEV dataset
         dataset = load_dataset(data_path)
         for split in dataset:
-            dataset[split] = dataset[split].shuffle(seed=42).select(range(1000))
+            dataset[split] = dataset[split].shuffle(seed=42)
 
     return dataset
 
@@ -47,12 +47,14 @@ def preprocess_data(dataset, dataset_name):
             text_target=targets,
             padding=True,
             truncation=True,
-            max_length=256
+            max_length=256,
+            return_tensors="pt"
         )
         return model_inputs
     
     # Apply tokenization to dataset
     tokenized_data = dataset.map(preprocess_function, batched=True)
+    # tokenized_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
     tokenized_data = tokenized_data.remove_columns(["en", "vi"])
     return tokenized_data
 
@@ -65,15 +67,16 @@ if __name__ == "__main__":
     medev_dataset = load_and_prepare_dataset(medev_path, is_csv=False)
     
     # Load the MIMIC-III dataset from CSV
-    mimic_dataset = load_and_prepare_dataset(mimic_path, is_csv=True)
+    # mimic_dataset = load_and_prepare_dataset(mimic_path, is_csv=True)
 
     # Preprocess and tokenize each dataset
     tokenized_medev = preprocess_data(medev_dataset, dataset_name="MedEV")
-    tokenized_mimic = preprocess_data(mimic_dataset, dataset_name="MIMIC-III Demo")
+    print(tokenized_medev)
+    # tokenized_mimic = preprocess_data(mimic_dataset, dataset_name="MIMIC-III Demo")
 
     print("Tokenization completed for both datasets!")
 
     # Save tokenized datasets
     tokenized_medev.save_to_disk("./tokenized_dataset/MedEV")
-    tokenized_mimic.save_to_disk("./tokenized_dataset/MIMIC-III")
+    # tokenized_mimic.save_to_disk("./tokenized_dataset/MIMIC-III")
     print("Tokenized datasets saved.")
