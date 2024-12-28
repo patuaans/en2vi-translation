@@ -120,7 +120,6 @@ if __name__ == "__main__":
         device_map="auto",
         trust_remote_code=False,
         revision="main",
-        low_cpu_mem_usage=True
     )
 
     # Stage 1: Train on MedEV dataset
