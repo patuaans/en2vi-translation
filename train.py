@@ -29,8 +29,8 @@ def train_model(model, tokenizer, tokenized_datasets, result_path):
         peft_config = LoraConfig(
             task_type= "SEQ_2_SEQ_LM",  
             inference_mode=False,               
-            r=32,                               
-            lora_alpha=64,                     
+            r=16,                               
+            lora_alpha=32,                     
             lora_dropout=0.1,                  
             bias="none",                        
             target_modules="all-linear"
