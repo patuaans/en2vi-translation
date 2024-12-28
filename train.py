@@ -47,8 +47,8 @@ def train_model(model, tokenizer, tokenized_datasets, result_path):
         training_args = Seq2SeqTrainingArguments(
             output_dir=result_path,
             eval_strategy="steps",
-            eval_steps=2,     
-            save_steps=2,
+            eval_steps=4,     
+            save_steps=4,
             save_strategy="steps",
             learning_rate=5e-5, 
             save_total_limit=2,
@@ -104,10 +104,6 @@ def train_model(model, tokenizer, tokenized_datasets, result_path):
         raise
 
 if __name__ == "__main__":
-    # Path to the tokenized dataset, result of MedEV
-    medev_tokenized_path = "./tokenized_dataset/MedEV"
-    medev_result_path = "./finetuned_model/MedEV"
-
     # Load tokenizer and model
     model_name = "vinai/vinai-translate-en2vi-v2"
     tokenizer = AutoTokenizer.from_pretrained(model_name, src_lang="en_XX", tgt_lang="vi_VN")
@@ -122,7 +118,19 @@ if __name__ == "__main__":
         revision="main",
     )
 
+    # Set device
+    device = torch.device('cuda')
+
+    model_nf4.to(device)
+
+    # Path to save the fine-tuned model
+    model_name = model_name.split('/')[-1]
+    fine_tuned_path = "./finetuned_model/" + model_name
+
+    # Load MedEV dataset
+    medev_tokenized_path = "./tokenized_dataset/MedEV"
+    medev_datasets = load_from_disk(medev_tokenized_path)
+
     # Stage 1: Train on MedEV dataset
     print("Stage 1: Training on MedEV dataset")
-    medev_datasets = load_from_disk(medev_tokenized_path)
-    train_model(model_nf4, tokenizer, medev_datasets, medev_result_path)
+    train_model(model_nf4, tokenizer, medev_datasets, fine_tuned_path)
