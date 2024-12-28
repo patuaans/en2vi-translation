@@ -1,5 +1,3 @@
-import nltk
-nltk.download('wordnet')
 import torch
 from transformers import (
     AutoTokenizer,
@@ -50,13 +48,13 @@ def train_model(model, tokenizer, tokenized_datasets, result_path):
         training_args = Seq2SeqTrainingArguments(
             output_dir=result_path,
             eval_strategy="steps",
-            eval_steps=200,     
-            save_steps=200,
+            eval_steps=2,     
+            save_steps=2,
             save_strategy="steps",
             learning_rate=5e-5, 
             save_total_limit=2,
             num_train_epochs=5,
-            per_device_train_batch_size=20,  
+            per_device_train_batch_size=15,  
             per_device_eval_batch_size=2,
             gradient_accumulation_steps=4,  
             warmup_steps=1250, 
@@ -64,11 +62,10 @@ def train_model(model, tokenizer, tokenized_datasets, result_path):
             generation_max_length=256,
             fp16=True,
             # logging_steps=1,
-	        # dataloader_num_workers=8,
+	        # dataloader_num_workers=12,
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
             greater_is_better=False,
-            optim="paged_adamw_8bit"
         )
 
         # Define a custom optimizer
@@ -95,7 +92,7 @@ def train_model(model, tokenizer, tokenized_datasets, result_path):
 
         #Train model
         model.config.use_cache = False # silence the warnings
-        trainer.train()
+        trainer.train(resume_from_checkpoint=False)
         
         # Renable warnings
         model.config.use_cache = True
