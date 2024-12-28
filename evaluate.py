@@ -13,6 +13,7 @@ from datasets import load_from_disk
 from peft import PeftModel
 from sacrebleu.metrics import BLEU, TER
 from nltk.translate.meteor_score import meteor_score
+import gc
 
 def load_model_and_tokenizer(model_name, is_fine_tuned, adapter_path=None):
     try:
@@ -54,7 +55,7 @@ def evaluate_model(model, tokenizer, device, dataset, model_name, fine_tuned):
         dataloader = DataLoader(
             dataset, 
             collate_fn=data_collator, 
-            batch_size=10,  # Adjust based on GPU memory
+            batch_size=12,  # Adjust based on GPU memory
             shuffle=False
         )
 
@@ -79,6 +80,10 @@ def evaluate_model(model, tokenizer, device, dataset, model_name, fine_tuned):
 
                     decoded_preds.extend(preds)
                     decoded_labels.extend(labels_decoded)
+
+                    # Cleanup
+                    del batch, inputs, labels, outputs, preds, labels_decoded
+                    torch.cuda.empty_cache()
 
         # Calculate metrics
         bleu_score = bleu.corpus_score(decoded_preds, [decoded_labels]).score
@@ -157,7 +162,7 @@ def run_evaluation():
 
     # Fine-tuned models with their associated adapter paths
     fine_tuned_models = [
-        ("vinai/vinai-translate-en2vi-v2", "./finetuned_model/vinai-translate-en2vi-v2"),
+        # ("vinai/vinai-translate-en2vi-v2", "./finetuned_model/vinai-translate-en2vi-v2"),
     ]
 
     # Combine models with their fine-tuned status and adapter paths
@@ -194,7 +199,7 @@ def run_evaluation():
                 model=model,
                 tokenizer=tokenizer,
                 device=device,
-                dataset=tokenized["test"].select(range(100)),  # Evaluate on a subset of the test set
+                dataset=tokenized["test"],  # Evaluate on a subset of the test set
                 model_name=model_name,
                 fine_tuned=is_fine_tuned
             )
@@ -207,8 +212,8 @@ def run_evaluation():
         
         finally:
             # Free GPU memory
-            del model
-            del tokenizer
+            del model, tokenizer
+            gc.collect()
             torch.cuda.empty_cache()
             print(f"Freed GPU memory after evaluating '{model_name}'.")
 
