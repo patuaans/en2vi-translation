@@ -71,7 +71,6 @@ if __name__ == "__main__":
 
     # Preprocess and tokenize each dataset
     tokenized_medev = preprocess_data(medev_dataset, dataset_name="MedEV")
-    print(tokenized_medev)
     # tokenized_mimic = preprocess_data(mimic_dataset, dataset_name="MIMIC-III Demo")
 
     print("Tokenization completed for both datasets!")
