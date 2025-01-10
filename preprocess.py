@@ -45,6 +45,7 @@ def preprocess_data(dataset, dataset_name):
         model_inputs = tokenizer(
             inputs,
             text_target=targets,
+            max_length=128,
             truncation=True,
         )
         return model_inputs
