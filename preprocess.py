@@ -44,7 +44,7 @@ def preprocess_data(dataset, dataset_name):
         # Tokenize inputs and targets
         model_inputs = tokenizer(
             inputs,
-            targets,
+            text_target=targets,
             truncation=True,
         )
         return model_inputs
@@ -52,7 +52,6 @@ def preprocess_data(dataset, dataset_name):
     # Apply tokenization to dataset
     tokenized_data = dataset.map(tokenize_function, batched=True)    
     tokenized_data = tokenized_data.remove_columns(["en", "vi"])
-    tokenized_data = tokenized_data.with_format("torch")
     return tokenized_data
 
 if __name__ == "__main__":
