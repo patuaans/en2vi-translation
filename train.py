@@ -168,17 +168,17 @@ def setup_training(model, tokenizer, tokenized_datasets):
     # )
 
     # Calculate num_training_steps
-    train_size = len(tokenized_datasets["train"].select(range(100)))
+    train_size = len(tokenized_datasets["train"])
     batches_per_epoch = math.ceil(train_size / (batch_size * gradient_accumulation_steps))
     num_training_steps = batches_per_epoch * num_epochs
 
-    # Set eval_steps to 20% of num_training_steps
-    eval_steps = max(1, num_training_steps // 20)
+    # Set eval_steps to 10% of num_training_steps
+    eval_steps = max(1, num_training_steps // 10)
 
-    print(f"Training Size: {train_size}")
-    print(f"Batches per Epoch: {batches_per_epoch}")
-    print(f"Total Training Steps: {num_training_steps}")
-    print(f"Evaluation Steps (10% of total): {eval_steps}")
+    # print(f"Training Size: {train_size}")
+    # print(f"Batches per Epoch: {batches_per_epoch}")
+    # print(f"Total Training Steps: {num_training_steps}")
+    # print(f"Evaluation Steps (10% of total): {eval_steps}")
 
     # Training arguments
     training_args = Seq2SeqTrainingArguments(
@@ -234,8 +234,8 @@ def setup_training(model, tokenizer, tokenized_datasets):
         model=model,
         args=training_args,
         data_collator=data_collator,
-        train_dataset=tokenized_datasets["train"].select(range(100)),
-        eval_dataset=tokenized_datasets["validation"].select(range(10)),
+        train_dataset=tokenized_datasets["train"],
+        eval_dataset=tokenized_datasets["validation"],
         processing_class=tokenizer,
         compute_metrics=compute_metrics,
         # callbacks=[early_stopping],
